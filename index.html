@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#121212">
   <link rel="manifest" href="manifest.json">
-  <title>Haushalt</title>
+  <title>fastFertig</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg:       #141414;
@@ -19,7 +20,7 @@
     }
 
     body {
-      font-family: Roboto, "Noto Sans", sans-serif;
+      font-family: 'Inter', Roboto, "Noto Sans", sans-serif;
       margin: 0;
       background: var(--bg);
       color: var(--text);
@@ -44,7 +45,32 @@
       transition: background 0.3s;
       margin-left: auto;
     }
-    .realtime-dot.connected { background: #4caf50; }
+    .realtime-dot.connected { background: #074e0f; }
+
+    .header-title {
+      display: inline-flex; 
+      align-items: center;
+      gap: 14px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .header-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .header-title .fast { color: #B69BCC; }
+    .header-title .fertig { color: #FFD9FF; }
+
+    .header-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
 
     .container {
       padding: 16px;
@@ -203,7 +229,12 @@
 <body>
 
 <header>
-  Haushalt
+  <div class="header-title">
+    <img class="header-icon" src="icon-28.png" alt="fastFertig" />
+    <div class="header-text">
+      <span class="fast">fast</span><span class="fertig">Fertig</span>
+    </div>
+  </div>
   <div class="realtime-dot" id="realtimeDot" title="Live-Sync"></div>
 </header>
 
