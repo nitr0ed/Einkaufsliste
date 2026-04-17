@@ -1,7 +1,7 @@
 const CACHE_NAME = "pwa-cache-v1";
 const urlsToCache = [
-  "/",
-  "/index.html"
+  "./",
+  "./index.html"
 ];
 
 // Install
