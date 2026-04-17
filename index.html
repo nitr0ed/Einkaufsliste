@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haushalt</title>
+  <style>
+    :root {
+      --bg:       #141414;
+      --bg2:      #1e1e1e;
+      --bg3:      #2a2a2a;
+      --border:   #333;
+      --text:     #e8e8e8;
+      --muted:    #666;
+      --accent:   #e8e8e8;
+      --danger:   #c0392b;
+    }
+
+    body {
+      font-family: Roboto, "Noto Sans", sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--bg2);
+      padding: 16px;
+      font-size: 20px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .realtime-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+      margin-left: auto;
+    }
+    .realtime-dot.connected { background: #4caf50; }
+
+    .container {
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 80px;
+    }
+
+    .hidden { display: none; }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 16px 0 8px;
+    }
+
+    .item {
+      background: var(--bg2);
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+      transition: opacity 0.2s;
+    }
+
+    .item.optimistic { opacity: 0.45; }
+
+    .item.done span { text-decoration: line-through; color: var(--muted); }
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="checkbox"] {
+      accent-color: var(--text);
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .input-row, .task-input {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    input[type="text"], input:not([type]), select {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 16px;
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    select option { background: var(--bg3); }
+
+    button.add-btn {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #111;
+      font-size: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      padding: 4px 8px;
+      cursor: pointer;
+      line-height: 1;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .delete-btn:hover { color: #ff6b6b; background: rgba(255,100,100,0.12); }
+
+    .badge {
+      font-size: 11px;
+      background: var(--accent);
+      color: #111;
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .due-label {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .tabs {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 14px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .tab.active {
+      font-weight: 600;
+      color: var(--text);
+      border-top: 2px solid var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  Haushalt
+  <div class="realtime-dot" id="realtimeDot" title="Live-Sync"></div>
+</header>
+
+<div class="container">
+
+  <!-- SHOPPING -->
+  <div id="shoppingView">
+    <div id="openList" class="list"></div>
+    <div class="input-row">
+      <input id="itemInput" type="text" placeholder="Neues Item ..." />
+      <button class="add-btn" onclick="addItem()">+</button>
+    </div>
+    <div id="doneSection" class="hidden">
+      <div class="section-label">Erledigt</div>
+      <div id="doneList" class="list"></div>
+    </div>
+  </div>
+
+  <!-- TASKS -->
+  <div id="tasksView" class="hidden">
+    <div id="openTasks" class="list"></div>
+    <div class="task-input">
+      <input id="taskTitle" type="text" placeholder="Neue Aufgabe ..." />
+      
+    </div>
+    <div>
+	<select id="taskType">
+        <option value="weekly">Woechentlich</option>
+        <option value="monthly">Monatlich</option>
+      </select>
+      <select id="taskValue"></select>
+      <button class="add-btn" onclick="addTask()">+</button>
+    </div>
+    <div id="doneTasksSection" class="hidden">
+      <div class="section-label">Heute erledigt</div>
+      <div id="doneTasks" class="list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('shopping')">Einkauf</div>
+  <div class="tab" onclick="switchTab('tasks')">Aufgaben</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script>
+  const client = supabase.createClient(
+    "https://abnyukgiihgarxpxihaq.supabase.co",
+    "sb_publishable_GmRaZ_DuCXh-e1q98AxOrA_KEKX9Aey"
+  );
+
+  const TODAY = new Date().toISOString().split("T")[0];
+
+  /* ── Toast ── */
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  /* ── Tabs ── */
+  function switchTab(tab) {
+    document.getElementById("shoppingView").classList.toggle("hidden", tab !== "shopping");
+    document.getElementById("tasksView").classList.toggle("hidden", tab !== "tasks");
+    document.querySelectorAll(".tab").forEach((t, i) => {
+      t.classList.toggle("active", (i === 0 && tab === "shopping") || (i === 1 && tab === "tasks"));
+    });
+  }
+
+  /* ── Enter key ── */
+  document.getElementById("itemInput").addEventListener("keydown", e => { if (e.key === "Enter") addItem(); });
+  document.getElementById("taskTitle").addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+
+  /* ────────────── SHOPPING ────────────── */
+
+  async function loadItems() {
+    const { data } = await client.from("shopping_items").select("*").order("created_at");
+    renderItems(data || []);
+  }
+
+  function renderItems(data) {
+    const openList   = document.getElementById("openList");
+    const doneList   = document.getElementById("doneList");
+    const doneSection = document.getElementById("doneSection");
+
+    openList.innerHTML = "";
+    doneList.innerHTML = "";
+
+    const open = data.filter(i => !i.done);
+    const done = data.filter(i => i.done);
+
+    open.forEach(item => openList.appendChild(buildItemEl(item)));
+    done.forEach(item => doneList.appendChild(buildItemEl(item)));
+
+    doneSection.classList.toggle("hidden", done.length === 0);
+  }
+
+  function buildItemEl(item) {
+    const div = document.createElement("div");
+    div.className = "item" + (item.done ? " done" : "");
+    div.id = "item-" + item.id;
+    div.innerHTML = `
+      <div class="left">
+        <input type="checkbox" ${item.done ? "checked" : ""}
+          onchange="toggleItem('${item.id}', this.checked)">
+        <span>${escHtml(item.name)}</span>
+      </div>
+      <button class="delete-btn" onclick="deleteItem('${item.id}')">&times;</button>
+    `;
+    return div;
+  }
+
+  async function addItem() {
+    const input = document.getElementById("itemInput");
+    const name = input.value.trim();
+    if (!name) return;
+
+    // Optimistic insert
+    const tmpId = "tmp-" + Date.now();
+    const tmpEl = buildItemEl({ id: tmpId, name, done: false });
+    tmpEl.classList.add("optimistic");
+    document.getElementById("openList").prepend(tmpEl);
+    input.value = "";
+
+    const { error } = await client.from("shopping_items").insert({ name });
+    if (error) {
+      tmpEl.remove();
+      showToast("Fehler beim Speichern");
+    }
+    // Realtime will refresh the list
+  }
+
+  async function toggleItem(id, done) {
+    const el = document.getElementById("item-" + id);
+    if (el) el.style.opacity = "0.4";
+    await client.from("shopping_items").update({ done }).eq("id", id);
+    loadItems();
+  }
+
+  async function deleteItem(id) {
+    await client.from("shopping_items").delete().eq("id", id);
+    const el = document.getElementById("item-" + id);
+    if (el) el.remove();
+  }
+
+  /* ────────────── TASKS ────────────── */
+
+  /* getDueLabel: returns a human-readable label like "heute", "in 3 Tagen", "Mo" */
+  function getDueLabel(task) {
+    const today = new Date();
+    const dow = today.getDay();
+
+    if (task.recurrence_type === "weekly") {
+      const d = parseInt(task.recurrence_value);
+      // convert JS Sunday=0 to Mo=0 offset for display
+      const diff = (d - dow + 7) % 7;
+      if (diff === 0) return "heute";
+      if (diff === 1) return "morgen";
+      return ["So","Mo","Di","Mi","Do","Fr","Sa"][d];
+    }
+
+    if (task.recurrence_type === "monthly") {
+      const d = parseInt(task.recurrence_value);
+      const diff = d - today.getDate();
+      if (diff === 0) return "heute";
+      if (diff === 1) return "morgen";
+      if (diff < 0)   return "am " + d + ".";
+      return "in " + diff + " Tag" + (diff === 1 ? "" : "en");
+    }
+
+    return "";
+  }
+
+  /* isDueToday: returns true if task is due on the current day */
+  function isDueToday(task) {
+    const today = new Date();
+    if (task.recurrence_type === "weekly")  return today.getDay()  === parseInt(task.recurrence_value);
+    if (task.recurrence_type === "monthly") return today.getDate() === parseInt(task.recurrence_value);
+    return false;
+  }
+
+  /* isCompletedToday: reset logic – tasks completed on a past date count as open again */
+  function isCompletedToday(task) {
+    return task.last_completed === TODAY;
+  }
+
+  function getSortScore(task) {
+    const due = isDueToday(task);
+    const today = new Date();
+    const dow = today.getDay();
+    let offset = 999;
+
+    if (task.recurrence_type === "weekly") {
+      offset = (parseInt(task.recurrence_value) - dow + 7) % 7;
+    }
+    if (task.recurrence_type === "monthly") {
+      const d = parseInt(task.recurrence_value);
+      offset = (d - today.getDate() + 31) % 31;
+    }
+    return { due, offset };
+  }
+
+  async function loadTasks() {
+    const { data } = await client.from("tasks").select("*");
+    renderTasks(data || []);
+  }
+
+  function renderTasks(data) {
+    const openTasks = document.getElementById("openTasks");
+    const doneTasks = document.getElementById("doneTasks");
+    const doneSection = document.getElementById("doneTasksSection");
+
+    openTasks.innerHTML = "";
+    doneTasks.innerHTML = "";
+
+    const open = data.filter(t => !isCompletedToday(t));
+    const done = data.filter(t => isCompletedToday(t));
+
+    open.sort((a, b) => {
+      const sa = getSortScore(a), sb = getSortScore(b);
+      if (sa.due !== sb.due) return sb.due - sa.due;
+      return sa.offset - sb.offset;
+    });
+
+    open.forEach(task => openTasks.appendChild(buildTaskEl(task)));
+    done.forEach(task => doneTasks.appendChild(buildTaskEl(task, true)));
+
+    doneSection.classList.toggle("hidden", done.length === 0);
+  }
+
+  function buildTaskEl(task, completed = false) {
+    const due = isDueToday(task);
+    const div = document.createElement("div");
+    div.className = "item";
+    div.id = "task-" + task.id;
+
+    div.innerHTML = `
+      <div class="left">
+        <input type="checkbox" ${completed ? "checked" : ""}
+          onchange="completeTask('${task.id}', this.checked)">
+        <span style="${completed ? 'text-decoration:line-through;color:#999;' : ''}">${escHtml(task.title)}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${!completed && due
+          ? `<span class="badge">heute</span>`
+          : `<span class="due-label">${getDueLabel(task)}</span>`
+        }
+        <button class="delete-btn" onclick="deleteTask('${task.id}')">&times;</button>
+      </div>
+    `;
+    return div;
+  }
+
+  async function addTask() {
+    const title = document.getElementById("taskTitle").value.trim();
+    if (!title) return;
+
+    document.getElementById("taskTitle").value = "";
+    await client.from("tasks").insert({
+      title,
+      recurrence_type: taskType.value,
+      recurrence_value: taskValue.value
+    });
+    loadTasks();
+  }
+
+  async function completeTask(id, checked) {
+    const value = checked ? TODAY : null;
+    await client.from("tasks").update({ last_completed: value }).eq("id", id);
+    loadTasks();
+  }
+
+  async function deleteTask(id) {
+    await client.from("tasks").delete().eq("id", id);
+    const el = document.getElementById("task-" + id);
+    if (el) el.remove();
+  }
+
+  /* ── Task UI ── */
+  const taskType  = document.getElementById("taskType");
+  const taskValue = document.getElementById("taskValue");
+
+  function updateTaskOptions() {
+    taskValue.innerHTML = "";
+    if (taskType.value === "weekly") {
+      // Mo=1 ... Sa=6, So=0 — display Mo-So, store JS day index
+      [["Mo",1],["Di",2],["Mi",3],["Do",4],["Fr",5],["Sa",6],["So",0]].forEach(([label, val]) => {
+        taskValue.appendChild(new Option(label, val));
+      });
+    }
+    if (taskType.value === "monthly") {
+      for (let i = 1; i <= 31; i++) {
+        taskValue.appendChild(new Option(i + ".", i));
+      }
+    }
+  }
+  taskType.addEventListener("change", updateTaskOptions);
+  updateTaskOptions();
+
+  /* ── Realtime Sync ── */
+  function setupRealtime() {
+    const dot = document.getElementById("realtimeDot");
+
+    client
+      .channel("haushalt-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items" }, () => loadItems())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => loadTasks())
+      .subscribe(status => {
+        dot.classList.toggle("connected", status === "SUBSCRIBED");
+      });
+  }
+
+  /* ── Helpers ── */
+  function escHtml(str) {
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  /* ── Init ── */
+  async function init() {
+    await Promise.all([loadItems(), loadTasks()]);
+    setupRealtime();
+  }
+
+  init();
+</script>
+</body>
+</html>
