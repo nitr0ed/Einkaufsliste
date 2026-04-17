@@ -1,6 +1,6 @@
 {
-  "name": "Meine WebApp",
-  "short_name": "WebApp",
+  "name": "Haushalt",
+  "short_name": "Haushalt",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
