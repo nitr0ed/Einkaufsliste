@@ -369,8 +369,11 @@
     if (error) {
       tmpEl.remove();
       showToast("Fehler beim Speichern");
+    } else {
+      // Ensure the list is refreshed
+      loadItems();
     }
-    // Realtime will refresh the list
+    // Realtime will also refresh the list
   }
 
   async function toggleItem(id, done) {
@@ -546,9 +549,16 @@
 
     client
       .channel("haushalt-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items" }, () => loadItems())
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => loadTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items" }, () => {
+        console.log("Realtime update for shopping_items");
+        loadItems();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
+        console.log("Realtime update for tasks");
+        loadTasks();
+      })
       .subscribe(status => {
+        console.log("Realtime status:", status);
         dot.classList.toggle("connected", status === "SUBSCRIBED");
       });
   }
